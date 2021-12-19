@@ -1,0 +1,29 @@
+{
+  "name": "winstonkafka",
+  "version": "1.0.0",
+  "description": "",
+  "main": "main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/doctor3030/winstonKafka.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/doctor3030/winstonKafka/issues"
+  },
+  "homepage": "https://github.com/doctor3030/winstonKafka#readme",
+  "devDependencies": {
+    "@types/node": "^17.0.0",
+    "@types/uuid": "^8.3.3",
+    "kafkajs": "^1.15.0",
+    "logform": "^2.3.0",
+    "typescript": "^4.5.4",
+    "uuid": "^8.3.2",
+    "winston": "^3.3.3",
+    "winston-daily-rotate-file": "^4.5.5"
+  }
+}
