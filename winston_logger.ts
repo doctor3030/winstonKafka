@@ -22,11 +22,11 @@ interface Sink {
     opts?: object;
 }
 
-class ConsoleSink implements Sink {
+export class ConsoleSink implements Sink {
     name = 'console'
 }
 
-class KafkaSink implements Sink {
+export class KafkaSink implements Sink {
     name = 'kafka';
     opts: object;
 
@@ -40,7 +40,7 @@ class KafkaSink implements Sink {
     }
 }
 
-class FileSink implements Sink {
+export class FileSink implements Sink {
     name = 'file';
     opts: object;
 
@@ -84,13 +84,22 @@ class KafkaTransport extends Transport {
         this._sink_topic = kafkaOpts.sink_topic;
     }
 
-    log(info: any, callback: any) {
+    logKafkaSink(msg: any) {
+        this._kafkaProducer?.send({
+            topic: this._sink_topic,
+            messages: [{value: msg}],
+            compression: CompressionTypes.GZIP
+        })
+    }
+
+    log(info: any, callback=this.logKafkaSink) {
         setImmediate(() => {
             this.emit('logged', info);
         });
 
-        // Perform the writing to the remote service
-        callback();
+        // this.logKafkaSink(JSON.stringify(info));
+
+        callback(JSON.stringify(info));
     }
 
     close () {
@@ -176,7 +185,7 @@ export class Logger {
     //                    level='INFO', serialize=True)
     //     return logger.bind(service_id=str(uuid.uuid4()))
 
-    public get_logger(sinks: Array<Sink>) {
+    public getLogger(sinks: Array<Sink>) {
             const transports: Array<any> = [];
             sinks.forEach(sink => {
                 if (sink.name === Sinks.CONSOLE) {
@@ -187,7 +196,7 @@ export class Logger {
                     transports.push(new KafkaTransport(sink.opts))
                 }
             })
-
+        // console.log(transports);
         if (transports.length > 0) {
             return new createLogger({transports: transports, format: this._format});
         } else {
