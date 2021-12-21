@@ -67,7 +67,6 @@ enum Sinks {
     KAFKA = 'kafka'
 }
 
-
 class KafkaTransport extends Transport {
     private readonly _kafka: Kafka;
     private readonly _kafkaProducer: Producer;
@@ -85,21 +84,27 @@ class KafkaTransport extends Transport {
     }
 
     logKafkaSink(msg: any) {
-        this._kafkaProducer?.send({
-            topic: this._sink_topic,
-            messages: [{value: msg}],
-            compression: CompressionTypes.GZIP
-        })
+        try {
+            this._kafkaProducer?.send({
+                topic: this._sink_topic,
+                messages: [{value: msg}],
+                compression: CompressionTypes.GZIP
+            })
+        }
+        catch (e) {
+            console.log(e);
+        }
+
     }
 
-    log(info: any, callback=this.logKafkaSink) {
+    log(info: any, callback: Function) {
         setImmediate(() => {
             this.emit('logged', info);
         });
 
-        // this.logKafkaSink(JSON.stringify(info));
+        this.logKafkaSink(JSON.stringify(info));
 
-        callback(JSON.stringify(info));
+        // callback(JSON.stringify(info));
     }
 
     close () {
@@ -109,81 +114,28 @@ class KafkaTransport extends Transport {
     }
 }
 
-
 export class Logger {
-    private readonly _kafka: Kafka | undefined;
-    private readonly _kafkaProducer: Producer | undefined;
-    // private readonly _sink_topic: string = '';
     private readonly _format: Format;
+    // private readonly _format_color: Format;
 
     constructor(config: LoggerConfig) {
-        // if (config) {
-        //     this._kafka = new Kafka(kafka_config.client_config)
-        //     this._kafkaProducer = this._kafka.producer(kafka_config.producer_config)
-        //     this._kafkaProducer.connect().then(r => {
-        //         console.log('Logger connected to Kafka.');
-        //     });
-        //
-        //     this._sink_topic = kafka_config.sink_topic;
-        // }
-
-
         this._format = combine(
-            colorize(),
             label({ label: `MODULE: ${config.module} | COMPONENT: ${config.component} | SERVICE_PID: ${process.pid} | SERVICE_ID: ${config.serviceID}` }),
             timestamp(),
             printf((info: TransformableInfo) => {return `${info.label} | ${info.level} | ${info.timestamp} | ${info.message}`})
         )
 
-        // if (config.sinks) {
-        //
-        // } else {
-        //     transports
-        // }
-
-
+        // this._format_color = combine(
+        //     colorize(),
+        //     label({ label: `MODULE: ${config.module} | COMPONENT: ${config.component} | SERVICE_PID: ${process.pid} | SERVICE_ID: ${config.serviceID}` }),
+        //     timestamp(),
+        //     printf((info: TransformableInfo) => {return `${info.label} | ${info.level} | ${info.timestamp} | ${info.message}`})
+        // )
     }
-
-    // private logKafkaSink(msg: any) {
-    //     this._kafkaProducer?.send({
-    //         topic: this._sink_topic,
-    //         messages: [{value: msg}],
-    //         compression: CompressionTypes.GZIP
-    //     })
-    // }
 
     public getDefaultLogger () {
         return new createLogger({transports: [new (winstonTransports.Console)()], format: this._format});
     }
-
-    // def get_logger(self, sinks, **args):
-    //     logger.remove()
-    //     if 'stdout' in sinks:
-    //         logger.add(sys.stdout,
-    //                    format=self.stdout_format,
-    //                    level='INFO', filter=self.filter_stdout)
-    //     if 'stderr' in sinks:
-    //         logger.add(sys.stderr,
-    //                    format=self.stderr_format,
-    //                    level='ERROR')
-    //     if 'kafka' in sinks:
-    //         if self.producer is not None:
-    //             logger.add(self.log_kafka_sink,
-    //                        format=self.plain_format,
-    //                        level='INFO', serialize=True)
-    //         else:
-    //             print('Kafka channel requested but no bootstrap servers provided.', file=sys.stderr)
-    //     if 'file' in sinks:
-    //         path = args.get('path')
-    //         rotation = args.get('rotation')
-    //         retention = args.get('retention')
-    //
-    //         logger.add(path,
-    //                    rotation=rotation,
-    //                    retention=retention,
-    //                    format=self.plain_format,
-    //                    level='INFO', serialize=True)
-    //     return logger.bind(service_id=str(uuid.uuid4()))
 
     public getLogger(sinks: Array<Sink>) {
             const transports: Array<any> = [];
@@ -196,17 +148,11 @@ export class Logger {
                     transports.push(new KafkaTransport(sink.opts))
                 }
             })
-        // console.log(transports);
+
         if (transports.length > 0) {
             return new createLogger({transports: transports, format: this._format});
         } else {
             return this.getDefaultLogger();
         }
     }
-
-    // close () {
-    //     this._kafkaProducer?.disconnect().then(r => {
-    //         console.log('KAFKA DISCONNECTED');
-    //     });
-    // }
 }
