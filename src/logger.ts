@@ -1,25 +1,29 @@
-// import { v4 as uuid } from 'uuid';
 import { CompressionTypes, Kafka, Producer } from "kafkajs";
 import { Format, TransformableInfo } from "logform";
-// import * as Config from "winston/lib/winston/config";
-// import * as logform from "logform";
-
-// const winston = require('winston');
 import { transports as winstonTransports } from 'winston'
+import  'winston-daily-rotate-file';
+import * as ITransport from "winston-transport";
+
 const { createLogger } = require('winston');
 const { format } = require('logform');
 const { combine, timestamp, label, printf, colorize } = format;
-// const path = require('path')
-
-import  'winston-daily-rotate-file';
-
-import * as ITransport from "winston-transport";
 const Transport = require('winston-transport');
 
+interface LoggerConfig {
+    module: string;
+    component: string;
+    serviceID: string;
+}
 
 interface Sink {
     name: string;
     opts?: object;
+}
+
+export enum Sinks {
+    CONSOLE = 'console',
+    FILE = 'file',
+    KAFKA = 'kafka'
 }
 
 export class ConsoleSink implements Sink {
@@ -32,7 +36,7 @@ export class KafkaSink implements Sink {
 
     constructor(
         opts: {
-            client_config: {brokers: Array<string>, clientId: string},
+            client_config: {brokers: string[], clientId: string},
             producer_config: {allowAutoTopicCreation: boolean},
             sink_topic: string}
     ) {
@@ -55,22 +59,10 @@ export class FileSink implements Sink {
     }
 }
 
-interface LoggerConfig {
-    module: string;
-    component: string;
-    serviceID: string;
-}
-
-enum Sinks {
-    CONSOLE = 'console',
-    FILE = 'file',
-    KAFKA = 'kafka'
-}
-
 class KafkaTransport extends Transport {
     private readonly _kafka: Kafka;
     private readonly _kafkaProducer: Producer;
-    private readonly _sink_topic: string;
+    private readonly _sinkTopic: string;
 
     constructor(kafkaOpts: any, winstonTransportOpts?: ITransport.TransportStreamOptions) {
         super(winstonTransportOpts);
@@ -80,29 +72,28 @@ class KafkaTransport extends Transport {
             console.log('Logger connected to Kafka.');
         });
 
-        this._sink_topic = kafkaOpts.sink_topic;
+        this._sinkTopic = kafkaOpts.sink_topic;
     }
 
-    logKafkaSink(msg: any) {
+    logToKafka(info: any) {
         try {
             this._kafkaProducer?.send({
-                topic: this._sink_topic,
-                messages: [{value: msg}],
+                topic: this._sinkTopic,
+                messages: [{value: JSON.stringify(info)}],
                 compression: CompressionTypes.GZIP
             })
         }
         catch (e) {
             console.log(e);
         }
-
     }
 
-    log(info: any, callback: Function) {
+    log(info: any, callback: void) {
         setImmediate(() => {
             this.emit('logged', info);
         });
 
-        this.logKafkaSink(JSON.stringify(info));
+        this.logToKafka(info);
 
         // callback(JSON.stringify(info));
     }
@@ -116,7 +107,6 @@ class KafkaTransport extends Transport {
 
 export class Logger {
     private readonly _format: Format;
-    // private readonly _format_color: Format;
 
     constructor(config: LoggerConfig) {
         this._format = combine(
@@ -137,8 +127,8 @@ export class Logger {
         return new createLogger({transports: [new (winstonTransports.Console)()], format: this._format});
     }
 
-    public getLogger(sinks: Array<Sink>) {
-            const transports: Array<any> = [];
+    public getLogger(sinks: Sink[]) {
+            const transports: any[] = [];
             sinks.forEach(sink => {
                 if (sink.name === Sinks.CONSOLE) {
                     transports.push(new (winstonTransports.Console)());

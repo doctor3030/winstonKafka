@@ -1,4 +1,4 @@
-import {Logger} from "../winston_logger";
+import {Logger} from "../src/logger";
 const path = require('path')
 import { v4 as uuid } from 'uuid';
 
