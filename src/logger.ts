@@ -1,8 +1,10 @@
 import { CompressionTypes, Kafka, Producer } from "kafkajs";
-import { Format, TransformableInfo } from "logform";
-import { transports as winstonTransports } from 'winston'
+// import { Format, TransformableInfo } from "logform";
+import winston, { transports as winstonTransports } from 'winston'
 import  'winston-daily-rotate-file';
 import * as ITransport from "winston-transport";
+// import {inspect} from "util";
+// import colors = module
 
 const { createLogger } = require('winston');
 const { format } = require('logform');
@@ -106,25 +108,48 @@ class KafkaTransport extends Transport {
 }
 
 export class Logger {
-    private readonly _format: Format;
+    public config: LoggerConfig;
 
     constructor(config: LoggerConfig) {
-        this._format = combine(
-            label({ label: `MODULE: ${config.module} | COMPONENT: ${config.component} | SERVICE_PID: ${process.pid} | SERVICE_ID: ${config.serviceID}` }),
-            timestamp(),
-            printf((info: TransformableInfo) => {return `${info.label} | ${info.level} | ${info.timestamp} | ${info.message}`})
-        )
+        this.config = config
+    }
 
-        // this._format_color = combine(
-        //     colorize(),
-        //     label({ label: `MODULE: ${config.module} | COMPONENT: ${config.component} | SERVICE_PID: ${process.pid} | SERVICE_ID: ${config.serviceID}` }),
-        //     timestamp(),
-        //     printf((info: TransformableInfo) => {return `${info.label} | ${info.level} | ${info.timestamp} | ${info.message}`})
-        // )
+    public getFormat(colors?: boolean) {
+        if (colors) {
+            return combine(
+                colorize(),
+                timestamp({ format: 'YYYY-MM-DD HH:mm:ss.SSS' }),
+                printf(({ message, timestamp, level, mainLabel, childLabel }: any) => {
+                    if (childLabel) {return `${childLabel} | ${level} | ${timestamp} | ${message}`;}
+                    else {return `${mainLabel} | ${level} | ${timestamp} | ${message}`;}
+                })
+            )
+        } else {
+            return combine(
+                timestamp({ format: 'YYYY-MM-DD HH:mm:ss.SSS' }),
+                printf(({ message, timestamp, level, mainLabel, childLabel }: any) => {
+                    if (childLabel) {return `${childLabel} | ${level} | ${timestamp} | ${message}`;}
+                    else {return `${mainLabel} | ${level} | ${timestamp} | ${message}`;}
+                })
+            )
+        }
+    }
+
+    public getLabel(child_config?: LoggerConfig) {
+        if (child_config) {
+            return `MODULE: ${child_config.module} | COMPONENT: ${child_config.component} | SERVICE_PID: ${process.pid} | SERVICE_ID: ${child_config.serviceID}`;
+        } else {
+            return `MODULE: ${this.config.module} | COMPONENT: ${this.config.component} | SERVICE_PID: ${process.pid} | SERVICE_ID: ${this.config.serviceID}`;
+        }
     }
 
     public getDefaultLogger () {
-        return new createLogger({transports: [new (winstonTransports.Console)()], format: this._format});
+        return createLogger({
+            defaultMeta: { mainLabel: this.getLabel() },
+            level: 'info',
+            format: this.getFormat(true),
+            transports: [new winston.transports.Console()],
+        });
     }
 
     public getLogger(sinks: Sink[]) {
@@ -140,7 +165,7 @@ export class Logger {
             })
 
         if (transports.length > 0) {
-            return new createLogger({transports: transports, format: this._format});
+            return new createLogger({transports: transports, format: this.getFormat()});
         } else {
             return this.getDefaultLogger();
         }
