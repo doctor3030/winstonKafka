@@ -19,7 +19,15 @@ interface LoggerConfig {
 
 interface Sink {
     name: string;
-    opts?: object;
+    opts?: any;
+}
+
+interface KafkaConfig {
+    client_config: {brokers: string[], clientId: string},
+    producer_config: {
+        allowAutoTopicCreation: boolean
+    },
+    sink_topic: string
 }
 
 export enum Sinks {
@@ -34,13 +42,10 @@ export class ConsoleSink implements Sink {
 
 export class KafkaSink implements Sink {
     name = 'kafka';
-    opts: object;
+    opts: KafkaConfig;
 
     constructor(
-        opts: {
-            client_config: {brokers: string[], clientId: string},
-            producer_config: {allowAutoTopicCreation: boolean},
-            sink_topic: string}
+        opts: KafkaConfig
     ) {
         this.opts = opts;
     }
@@ -62,24 +67,24 @@ export class FileSink implements Sink {
 }
 
 class KafkaTransport extends Transport {
-    private readonly _kafka: Kafka;
+    // private readonly _kafka: Kafka;
     private readonly _kafkaProducer: Producer;
     private readonly _sinkTopic: string;
 
-    constructor(kafkaOpts: any, winstonTransportOpts?: ITransport.TransportStreamOptions) {
+    constructor(kafka_config: KafkaConfig, winstonTransportOpts?: ITransport.TransportStreamOptions) {
         super(winstonTransportOpts);
-        this._kafka = new Kafka(kafkaOpts.client_config)
-        this._kafkaProducer = this._kafka.producer(kafkaOpts.producer_config)
-        this._kafkaProducer.connect().then(r => {
+        // this._kafka = new Kafka(kafkaOpts.client_config)
+        this._kafkaProducer = (new Kafka(kafka_config.client_config)).producer(kafka_config.producer_config);
+        this._kafkaProducer.connect().then(_ => {
             console.log('Logger connected to Kafka.');
         });
 
-        this._sinkTopic = kafkaOpts.sink_topic;
+        this._sinkTopic = kafka_config.sink_topic;
     }
 
-    logToKafka(info: any) {
+    async logToKafka(info: any) {
         try {
-            this._kafkaProducer?.send({
+            await this._kafkaProducer.send({
                 topic: this._sinkTopic,
                 messages: [{value: JSON.stringify(info)}],
                 compression: CompressionTypes.GZIP
@@ -95,13 +100,11 @@ class KafkaTransport extends Transport {
             this.emit('logged', info);
         });
 
-        this.logToKafka(info);
-
-        // callback(JSON.stringify(info));
+        this.logToKafka(info).then(_ => {});
     }
 
     close () {
-        this._kafkaProducer?.disconnect().then(r => {
+        this._kafkaProducer.disconnect().then(_ => {
             console.log('Logger disconnected from Kafka.');
         });
     }
@@ -165,7 +168,13 @@ export class Logger {
             })
 
         if (transports.length > 0) {
-            return new createLogger({transports: transports, format: this.getFormat()});
+            // return new createLogger({transports: transports, format: this.getFormat()});
+            return createLogger({
+                defaultMeta: { mainLabel: this.getLabel() },
+                level: 'info',
+                format: this.getFormat(false),
+                transports: transports,
+            });
         } else {
             return this.getDefaultLogger();
         }

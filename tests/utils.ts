@@ -1,10 +1,55 @@
-import { Logger, ConsoleSink, FileSink, KafkaSink } from "../src/logger";
-const path = require('path')
-import { v4 as uuid } from 'uuid';
-import {CompressionTypes, Kafka, Producer, Consumer, PartitionAssigner, RetryOptions} from "kafkajs";
-import {Logger as WinstonLogger} from "winston";
+import {CompressionTypes, Kafka, Producer, Consumer, PartitionAssigner, RetryOptions, KafkaMessage} from "kafkajs";
 
 
-class KafkaListener {
+interface Config {
+    client_config: {brokers: string[], clientId: string},
+    consumer_config: {
+        groupId: string,
+        sessionTimeout: number,
+        allowAutoTopicCreation: boolean
+    },
+}
 
+export class KafkaListener {
+    private readonly _config: Config;
+    private _kafka_consumer: Consumer;
+    constructor(config: Config) {
+        this._config = config;
+        this._kafka_consumer = (new Kafka(this._config.client_config)).consumer(this._config.consumer_config)
+    }
+
+    public async listen(
+        topic: string,
+        fromBeginning: boolean,
+        onMessage: (topic: string, partition: number, message: KafkaMessage) => any
+    ) {
+        try {
+            await this._kafka_consumer.connect().then(r => {
+                console.log('Consumer connected to Kafka.');
+            });
+            await this._kafka_consumer.subscribe({
+                    topic : topic,
+                    fromBeginning : fromBeginning
+            });
+
+            await this._kafka_consumer.run({
+                eachMessage: async ({ topic, partition, message }) => {
+                    onMessage(topic, partition, message);
+                }
+            })
+        }
+        catch (e) {
+            console.log(e)
+        }
+
+    }
+
+    public close() {
+        console.log('Closing consumer...');
+        this._kafka_consumer.stop().then( _ => {
+            this._kafka_consumer.disconnect().then( _ => {
+                console.log('Consumer disconnected.');
+            });
+        })
+    }
 }
