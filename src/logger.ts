@@ -95,12 +95,15 @@ class KafkaTransport extends Transport {
         }
     }
 
-    log(info: any, callback: void) {
+    log(info: any, callback: any) {
         setImmediate(() => {
             this.emit('logged', info);
         });
 
-        this.logToKafka(info).then(_ => {});
+        this.logToKafka(info).then(_ => {
+            // console.log('MESSAGE SENT')
+        });
+        callback();
     }
 
     close () {

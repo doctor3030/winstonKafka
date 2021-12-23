@@ -33,6 +33,7 @@ export class KafkaListener {
             });
 
             await this._kafka_consumer.run({
+                autoCommit: true,
                 eachMessage: async ({ topic, partition, message }) => {
                     onMessage(topic, partition, message);
                 }
@@ -44,12 +45,15 @@ export class KafkaListener {
 
     }
 
-    public close() {
+    public async close() {
         console.log('Closing consumer...');
-        this._kafka_consumer.stop().then( _ => {
-            this._kafka_consumer.disconnect().then( _ => {
-                console.log('Consumer disconnected.');
-            });
-        })
+        await this._kafka_consumer.disconnect().then(_ => {
+            console.log('Consumer disconnected.');
+        });
+        // this._kafka_consumer.stop().then( _ => {
+        //     this._kafka_consumer.disconnect().then( _ => {
+        //         console.log('Consumer disconnected.');
+        //     });
+        // })
     }
 }
