@@ -1,19 +1,24 @@
 {
   "name": "winstonkafka",
   "version": "0.0.1",
-  "description": "",
+  "description": "Winston based logger with Kafka transport",
   "files": ["target/**/*"],
   "scripts": {
     "build": "tsc",
-    "test": "mocha -r ts-node/register 'tests/**/*.ts'",
+    "test": "mocha -r ts-node/register 'tests/test_default_logger.ts'",
     "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\"",
-    "lint": "tslint -p tsconfig.json"
+    "lint": "tslint -p tsconfig.json",
+    "prepare" : "npm run build",
+    "prepublishOnly" : "npm test && npm run lint",
+    "preversion" : "npm run lint",
+    "version" : "npm run format && git add -A src",
+    "postversion" : "git push && git push --tags"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/doctor3030/winstonKafka.git"
   },
-  "author": "",
+  "author": "Dmitry Amanov",
   "license": "ISC",
   "bugs": {
     "url": "https://github.com/doctor3030/winstonKafka/issues"
