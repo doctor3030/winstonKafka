@@ -1,11 +1,12 @@
 {
   "name": "winstonkafka",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "description": "",
+  "files": ["target/**/*"],
   "scripts": {
     "build": "tsc",
     "test": "mocha -r ts-node/register 'tests/**/*.ts'",
-    "format": "prettier --write \"src/**/*.ts\" \"src/**/*.js\"",
+    "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\"",
     "lint": "tslint -p tsconfig.json"
   },
   "repository": {
