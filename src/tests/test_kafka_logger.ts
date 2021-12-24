@@ -1,4 +1,4 @@
-import { Logger, ConsoleSink, FileSink, KafkaSink } from '../src/logger';
+import { Logger, ConsoleSink, FileSink, KafkaSink } from '../logger';
 import { KafkaListener } from './utils/kafka_utils';
 import { v4 as uuid } from 'uuid';
 import { KafkaMessage } from 'kafkajs';

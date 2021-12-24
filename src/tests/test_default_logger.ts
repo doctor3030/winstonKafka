@@ -1,4 +1,4 @@
-import { Logger } from '../src/logger';
+import { Logger } from '../logger';
 import { Logger as WinstonLogger } from 'winston';
 import * as chai from 'chai';
 import 'mocha';
