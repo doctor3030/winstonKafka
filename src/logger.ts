@@ -1,5 +1,5 @@
 import { CompressionTypes, Kafka, Producer } from 'kafkajs';
-import winston, { transports as winstonTransports } from 'winston';
+import winston, { transports as winstonTransports, Logger as winstonLogger } from 'winston';
 import 'winston-daily-rotate-file';
 import * as ITransport from 'winston-transport';
 
@@ -105,14 +105,9 @@ class KafkaTransport extends Transport {
   }
 }
 
-export class Logger {
-  public config: LoggerConfig;
+export interface ILogger extends winstonLogger {}
 
-  constructor(config: LoggerConfig) {
-    this.config = config;
-  }
-
-  public getFormat(colors?: boolean) {
+function getFormat(colors?: boolean) {
     if (colors) {
       return combine(
         colorize(),
@@ -139,24 +134,20 @@ export class Logger {
     }
   }
 
-  public getLabel(childConfig?: LoggerConfig) {
-    if (childConfig) {
-      return `MODULE: ${childConfig.module} | COMPONENT: ${childConfig.component} | SERVICE_PID: ${process.pid} | SERVICE_ID: ${childConfig.serviceID}`;
-    } else {
-      return `MODULE: ${this.config.module} | COMPONENT: ${this.config.component} | SERVICE_PID: ${process.pid} | SERVICE_ID: ${this.config.serviceID}`;
-    }
-  }
+function getLabel(config: LoggerConfig) {
+  return `MODULE: ${config.module} | COMPONENT: ${config.component} | SERVICE_PID: ${process.pid} | SERVICE_ID: ${config.serviceID}`;
+}
 
-  public getDefaultLogger() {
-    return createLogger({
-      defaultMeta: { mainLabel: this.getLabel() },
-      level: 'info',
-      format: this.getFormat(true),
-      transports: [new winston.transports.Console()],
-    });
-  }
+export function getDefaultLogger(config: LoggerConfig) {
+  return createLogger({
+    defaultMeta: { mainLabel: getLabel(config) },
+    level: 'info',
+    format: getFormat(true),
+    transports: [new winston.transports.Console()],
+  });
+}
 
-  public getLogger(sinks: Sink[]) {
+export function getLogger(config: LoggerConfig, sinks: Sink[]) {
     const transports: any[] = [];
     sinks.forEach((sink) => {
       if (sink.name === Sinks.CONSOLE) {
@@ -170,13 +161,16 @@ export class Logger {
 
     if (transports.length > 0) {
       return createLogger({
-        defaultMeta: { mainLabel: this.getLabel() },
+        defaultMeta: { mainLabel: getLabel(config) },
         level: 'info',
-        format: this.getFormat(false),
+        format: getFormat(false),
         transports: transports,
       });
     } else {
-      return this.getDefaultLogger();
+      return getDefaultLogger(config);
     }
-  }
+}
+
+export function getChildLogger(logger: winstonLogger, config: LoggerConfig) {
+  return logger.child({ childLabel: getLabel(config) });
 }

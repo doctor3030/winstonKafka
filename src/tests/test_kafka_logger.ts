@@ -1,4 +1,5 @@
-import { Logger, ConsoleSink, FileSink, KafkaSink } from '../logger';
+// import { Logger, ConsoleSink, FileSink, KafkaSink } from '../logger';
+import * as Logger from '../logger';
 import { KafkaListener } from './utils/kafka_utils';
 import { v4 as uuid } from 'uuid';
 import { KafkaMessage } from 'kafkajs';
@@ -9,33 +10,38 @@ import 'mocha';
 
 const path = require('path');
 const fs = require('fs');
+const kafkaClientConfig = {brokers: ['10.0.0.74:9092'], clientId: uuid()};
 
 class ThisClass {
   public readonly module = path.basename(__filename);
   public readonly component = 'ThisClass';
   public readonly serviceID = 'TestID';
-  private _clsLogger: Logger;
-  private _logger: WinstonLogger;
+  // private _clsLogger: Logger;
+  private _logger: Logger.ILogger;
   private _childClass: ChildClass;
 
   constructor() {
-    this._clsLogger = new Logger({
+    // this._clsLogger = new Logger({
+    //   module: this.module,
+    //   component: this.component,
+    //   serviceID: this.serviceID,
+    // });
+    this._logger = Logger.getLogger({
       module: this.module,
       component: this.component,
       serviceID: this.serviceID,
-    });
-    this._logger = this._clsLogger.getLogger([
-      ConsoleSink,
-      new FileSink({
+    },[
+        Logger.ConsoleSink,
+      new Logger.FileSink({
         filename: './logs/%DATE%_log_file.log',
         datePattern: 'YYYY-MM-DD-HH',
         zippedArchive: false,
         maxSize: '20m',
         maxFiles: '14d',
       }),
-      new KafkaSink({
-        client_config: { brokers: ['192.168.2.190:9092'], clientId: uuid() },
-        // client_config: {brokers: ['10.0.0.74:9092'], clientId: uuid()},
+      new Logger.KafkaSink({
+        // client_config: { brokers: ['192.168.2.190:9092'], clientId: uuid() },
+        client_config: kafkaClientConfig,
         producer_config: { allowAutoTopicCreation: false },
         sink_topic: 'test_topic',
       }),
@@ -46,7 +52,8 @@ class ThisClass {
       component: 'ChildClass',
       serviceID: this.serviceID,
     };
-    const childLogger = this._logger.child({ childLabel: this._clsLogger.getLabel(childLoggerConf) });
+    // const childLogger = this._logger.child({ childLabel: this._clsLogger.getLabel(childLoggerConf) });
+    const childLogger = Logger.getChildLogger(this._logger, childLoggerConf);
     this._childClass = new ChildClass(childLogger);
   }
 
@@ -77,8 +84,8 @@ describe('Logger tests', () => {
   it('checking kafka logger', () => {
     const cls = new ThisClass();
     const kafkaListener = new KafkaListener({
-      client_config: { brokers: ['192.168.2.190:9092'], clientId: uuid() },
-      // client_config: {brokers: ['10.0.0.74:9092'], clientId: uuid()},
+      // client_config: { brokers: ['192.168.2.190:9092'], clientId: uuid() },
+      client_config: kafkaClientConfig,
       consumer_config: {
         groupId: 'test_group',
         sessionTimeout: 25000,
