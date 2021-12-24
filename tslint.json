@@ -5,6 +5,7 @@
      "max-classes-per-file": [false, 1],
      "no-var-requires": false,
      "object-literal-shorthand": false,
-     "no-shadowed-variable": false
+     "no-shadowed-variable": false,
+     "no-empty-interface": false
     }
 }
