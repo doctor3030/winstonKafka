@@ -123,11 +123,11 @@ function getFormat(colors?: boolean) {
     } else {
       return combine(
         timestamp({ format: 'YYYY-MM-DD HH:mm:ss.SSS' }),
-        printf(({ message, timestp, level, mainLabel, childLabel }: any) => {
+        printf(({ message, timestamp, level, mainLabel, childLabel }: any) => {
           if (childLabel) {
             return `${childLabel} | ${level} | ${timestamp} | ${message}`;
           } else {
-            return `${mainLabel} | ${level} | ${timestp} | ${message}`;
+            return `${mainLabel} | ${level} | ${timestamp} | ${message}`;
           }
         }),
       );
