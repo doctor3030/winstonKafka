@@ -31,7 +31,7 @@ class ThisClass {
       component: this.component,
       serviceID: this.serviceID,
     },[
-        Logger.ConsoleSink,
+      new Logger.ConsoleSink,
       new Logger.FileSink({
         filename: './logs/%DATE%_log_file.log',
         datePattern: 'YYYY-MM-DD-HH',
@@ -41,9 +41,9 @@ class ThisClass {
       }),
       new Logger.KafkaSink({
         // client_config: { brokers: ['192.168.2.190:9092'], clientId: uuid() },
-        client_config: kafkaClientConfig,
-        producer_config: { allowAutoTopicCreation: false },
-        sink_topic: 'test_topic',
+        clientConfig: kafkaClientConfig,
+        producerConfig: { allowAutoTopicCreation: false },
+        sinkTopic: 'test_topic',
       }),
     ]);
 
@@ -58,8 +58,10 @@ class ThisClass {
   }
 
   public async logSomething() {
-    this._logger.info('HELOOOOO from ThisClass!!!');
-    this._childClass.logSomething();
+    await new Promise(() => {
+      this._logger.info('HELOOOOO from ThisClass!!!');
+      this._childClass.logSomething();
+    });
   }
 
   public close() {
@@ -174,9 +176,9 @@ describe('Logger tests', () => {
     (async () => {
       await kafkaListener.listen('test_topic', false, onMessage);
       await cls.logSomething();
-      await delay(5000);
-      cls.close();
-      await kafkaListener.close();
+      // await delay(5000);
+      // cls.close();
+      // await kafkaListener.close();
     })().then((_) => {
       const outputFile = 'test_output_kafka.json';
       fs.readFile(outputFile, (err: ErrnoException | null, data: Buffer) => {

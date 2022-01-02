@@ -1,4 +1,4 @@
-import { CompressionTypes, Kafka, Producer } from 'kafkajs';
+import * as kafkajs from 'kafkajs';
 import winston, { transports as winstonTransports, Logger as winstonLogger } from 'winston';
 import 'winston-daily-rotate-file';
 import * as ITransport from 'winston-transport';
@@ -8,23 +8,21 @@ const { format } = require('logform');
 const { combine, timestamp, label, printf, colorize } = format;
 const Transport = require('winston-transport');
 
-interface LoggerConfig {
+export interface LoggerConfig {
   module: string;
   component: string;
   serviceID: string;
 }
 
-interface Sink {
+export interface Sink {
   name: string;
   opts?: any;
 }
 
-interface KafkaConfig {
-  client_config: { brokers: string[]; clientId: string };
-  producer_config: {
-    allowAutoTopicCreation: boolean;
-  };
-  sink_topic: string;
+export interface KafkaConfig {
+  clientConfig: kafkajs.KafkaConfig;
+  producerConfig: kafkajs.ProducerConfig;
+  sinkTopic: string;
 }
 
 export enum Sinks {
@@ -32,6 +30,8 @@ export enum Sinks {
   FILE = 'file',
   KAFKA = 'kafka',
 }
+
+export interface ILogger extends winstonLogger {}
 
 export class ConsoleSink implements Sink {
   name = 'console';
@@ -61,18 +61,18 @@ export class FileSink implements Sink {
   }
 }
 
-class KafkaTransport extends Transport {
-  private readonly _kafkaProducer: Producer;
+export class KafkaTransport extends Transport {
+  private readonly _kafkaProducer: kafkajs.Producer;
   private readonly _sinkTopic: string;
 
   constructor(kafkaConfig: KafkaConfig, winstonTransportOpts?: ITransport.TransportStreamOptions) {
     super(winstonTransportOpts);
-    this._kafkaProducer = new Kafka(kafkaConfig.client_config).producer(kafkaConfig.producer_config);
+    this._kafkaProducer = new kafkajs.Kafka(kafkaConfig.clientConfig).producer(kafkaConfig.producerConfig);
     this._kafkaProducer.connect().then((_) => {
       console.log('Logger connected to Kafka.');
     });
 
-    this._sinkTopic = kafkaConfig.sink_topic;
+    this._sinkTopic = kafkaConfig.sinkTopic;
   }
 
   async logToKafka(info: any) {
@@ -80,7 +80,7 @@ class KafkaTransport extends Transport {
       await this._kafkaProducer.send({
         topic: this._sinkTopic,
         messages: [{ value: JSON.stringify(info) }],
-        compression: CompressionTypes.GZIP,
+        compression: kafkajs.CompressionTypes.GZIP,
       });
     } catch (e) {
       console.log(e);
@@ -104,8 +104,6 @@ class KafkaTransport extends Transport {
     });
   }
 }
-
-export interface ILogger extends winstonLogger {}
 
 function getFormat(colors?: boolean) {
     if (colors) {
