@@ -1,174 +1,214 @@
 import * as kafkajs from 'kafkajs';
-import winston, { transports as winstonTransports, Logger as winstonLogger } from 'winston';
-import 'winston-daily-rotate-file';
+import 'winston-daily-rotate-file'
+import winston, {transports as winstonTransports, Logger as winstonLogger} from 'winston';
+import {DailyRotateFileTransportOptions, } from 'winston-daily-rotate-file';
 import * as ITransport from 'winston-transport';
 
-const { createLogger } = require('winston');
-const { format } = require('logform');
-const { combine, timestamp, label, printf, colorize } = format;
+const {createLogger} = require('winston');
+const {format} = require('logform');
+const {combine, timestamp, label, printf, colorize} = format;
 const Transport = require('winston-transport');
 
+export enum Levels {
+    DEBUG = 'debug',
+    INFO = 'info',
+    WARN = 'warn',
+    ERROR = 'error'
+}
+
 export interface LoggerConfig {
-  module: string;
-  component: string;
-  serviceID: string;
+    module: string;
+    component: string;
+    level: Levels
+    serviceID?: string;
 }
 
 export interface Sink {
-  name: string;
-  opts?: any;
+    name: string;
+    opts?: ITransport.TransportStreamOptions;
 }
 
-export interface KafkaConfig {
-  clientConfig: kafkajs.KafkaConfig;
-  producerConfig: kafkajs.ProducerConfig;
-  sinkTopic: string;
+export interface KafkaTransportConfig extends ITransport.TransportStreamOptions {
+    clientConfig?: kafkajs.KafkaConfig;
+    producerConfig?: kafkajs.ProducerConfig;
+    sinkTopic?: string;
 }
 
 export enum Sinks {
-  CONSOLE = 'console',
-  FILE = 'file',
-  KAFKA = 'kafka',
+    CONSOLE = 'console',
+    FILE = 'file',
+    KAFKA = 'kafka',
+    HTTP = 'http',
+    STREAM = 'stream'
 }
 
-export interface ILogger extends winstonLogger {}
+export interface ILogger extends winstonLogger {
+}
 
 export class ConsoleSink implements Sink {
-  name = 'console';
+    name = Sinks.CONSOLE;
+    opts?: winstonTransports.ConsoleTransportOptions
 }
 
 export class KafkaSink implements Sink {
-  name = 'kafka';
-  opts: KafkaConfig;
+    name = Sinks.KAFKA;
+    opts: KafkaTransportConfig;
 
-  constructor(opts: KafkaConfig) {
-    this.opts = opts;
-  }
+    constructor(opts: KafkaTransportConfig) {
+        this.opts = opts;
+    }
 }
 
 export class FileSink implements Sink {
-  name = 'file';
-  opts: object;
+    name = Sinks.FILE;
+    opts?: DailyRotateFileTransportOptions;
 
-  constructor(opts: {
-    filename: string;
-    datePattern: string;
-    zippedArchive: boolean;
-    maxSize: string;
-    maxFiles: string;
-  }) {
-    this.opts = opts;
-  }
+    constructor(opts: DailyRotateFileTransportOptions) {
+        this.opts = opts;
+    }
+}
+
+export class HttpSink implements Sink {
+    name = Sinks.HTTP;
+    opts?: winstonTransports.HttpTransportOptions;
+
+    constructor(opts: winstonTransports.HttpTransportOptions) {
+        this.opts = opts;
+    }
+}
+
+export class StreamSink implements Sink {
+    name = Sinks.STREAM;
+    opts?: winstonTransports.StreamTransportOptions;
+
+    constructor(opts: winstonTransports.StreamTransportOptions) {
+        this.opts = opts;
+    }
 }
 
 export class KafkaTransport extends Transport {
-  private readonly _kafkaProducer: kafkajs.Producer;
-  private readonly _sinkTopic: string;
+    private readonly _kafkaProducer: kafkajs.Producer;
+    private readonly _sinkTopic: string;
 
-  constructor(kafkaConfig: KafkaConfig, winstonTransportOpts?: ITransport.TransportStreamOptions) {
-    super(winstonTransportOpts);
-    this._kafkaProducer = new kafkajs.Kafka(kafkaConfig.clientConfig).producer(kafkaConfig.producerConfig);
-    this._kafkaProducer.connect().then((_) => {
-      console.log('Logger connected to Kafka.');
-    });
-
-    this._sinkTopic = kafkaConfig.sinkTopic;
-  }
-
-  async logToKafka(info: any) {
-    try {
-      await this._kafkaProducer.send({
-        topic: this._sinkTopic,
-        messages: [{ value: JSON.stringify(info) }],
-        compression: kafkajs.CompressionTypes.GZIP,
-      });
-    } catch (e) {
-      console.log(e);
+    constructor(kafkaConfig: KafkaTransportConfig | undefined) {
+        super(Transport);
+        if (kafkaConfig && kafkaConfig.clientConfig && kafkaConfig.sinkTopic) {
+            this._kafkaProducer = new kafkajs.Kafka(kafkaConfig.clientConfig).producer(kafkaConfig.producerConfig);
+            this._kafkaProducer.connect().then((_) => {
+                console.log('Logger connected to Kafka.');
+            });
+            this._sinkTopic = kafkaConfig.sinkTopic;
+        } else {
+            this._kafkaProducer = new kafkajs.Kafka({brokers: ['localhost:9092']}).producer();
+            this._kafkaProducer.connect().then((_) => {
+                console.log('Logger connected to Kafka.');
+            });
+            this._sinkTopic = 'test_topic';
+        }
     }
-  }
 
-  log(info: any, callback: any) {
-    setImmediate(() => {
-      this.emit('logged', info);
-    });
+    async logToKafka(info: any) {
+        // try {
+        await this._kafkaProducer.send({
+            topic: this._sinkTopic,
+            messages: [{value: JSON.stringify(info)}],
+            compression: kafkajs.CompressionTypes.GZIP,
+        });
+        // } catch (e) {
+        //   console.log(e);
+        // }
+    }
 
-    this.logToKafka(info).then((_) => {
-      // console.log('MESSAGE SENT')
-    });
-    callback();
-  }
+    log(info: any, callback: any) {
+        setImmediate(() => {
+            this.emit('logged', info);
+        });
 
-  close() {
-    this._kafkaProducer.disconnect().then((_) => {
-      console.log('Logger disconnected from Kafka.');
-    });
-  }
+        this.logToKafka(info).then((_) => {
+            // console.log('MESSAGE SENT')
+        });
+        callback();
+    }
+
+    close() {
+        this._kafkaProducer.disconnect().then((_) => {
+            console.log('Logger disconnected from Kafka.');
+        });
+    }
 }
 
-function getFormat(colors?: boolean) {
+export function getFormat(colors?: boolean) {
     if (colors) {
-      return combine(
-        colorize(),
-        timestamp({ format: 'YYYY-MM-DD HH:mm:ss.SSS' }),
-        printf(({ message, timestamp, level, mainLabel, childLabel }: any) => {
-          if (childLabel) {
-            return `${childLabel} | ${level} | ${timestamp} | ${message}`;
-          } else {
-            return `${mainLabel} | ${level} | ${timestamp} | ${message}`;
-          }
-        }),
-      );
+        return combine(
+            colorize(),
+            timestamp({format: 'YYYY-MM-DD HH:mm:ss.SSS'}),
+            printf(({message, timestamp, level, mainLabel, childLabel}: any) => {
+                if (childLabel) {
+                    return `${childLabel} | ${level} | ${timestamp} | ${message}`;
+                } else {
+                    return `${mainLabel} | ${level} | ${timestamp} | ${message}`;
+                }
+            }),
+        );
     } else {
-      return combine(
-        timestamp({ format: 'YYYY-MM-DD HH:mm:ss.SSS' }),
-        printf(({ message, timestamp, level, mainLabel, childLabel }: any) => {
-          if (childLabel) {
-            return `${childLabel} | ${level} | ${timestamp} | ${message}`;
-          } else {
-            return `${mainLabel} | ${level} | ${timestamp} | ${message}`;
-          }
-        }),
-      );
+        return combine(
+            timestamp({format: 'YYYY-MM-DD HH:mm:ss.SSS'}),
+            printf(({message, timestamp, level, mainLabel, childLabel}: any) => {
+                if (childLabel) {
+                    return `${childLabel} | ${level} | ${timestamp} | ${message}`;
+                } else {
+                    return `${mainLabel} | ${level} | ${timestamp} | ${message}`;
+                }
+            }),
+        );
     }
-  }
+}
 
-function getLabel(config: LoggerConfig) {
-  return `MODULE: ${config.module} | COMPONENT: ${config.component} | SERVICE_PID: ${process.pid} | SERVICE_ID: ${config.serviceID}`;
+export function getLabel(config: LoggerConfig) {
+    if (config.serviceID) {
+        return `MODULE: ${config.module} | COMPONENT: ${config.component} | PID: ${process.pid} | SERVICE_ID: ${config.serviceID}`;
+    } else {
+        return `MODULE: ${config.module} | COMPONENT: ${config.component} | PID: ${process.pid}`;
+    }
 }
 
 export function getDefaultLogger(config: LoggerConfig) {
-  return createLogger({
-    defaultMeta: { mainLabel: getLabel(config) },
-    level: 'info',
-    format: getFormat(true),
-    transports: [new winston.transports.Console()],
-  });
+    return createLogger({
+        defaultMeta: {mainLabel: getLabel(config)},
+        level: 'info',
+        format: getFormat(true),
+        transports: [new winston.transports.Console()],
+    });
 }
 
 export function getLogger(config: LoggerConfig, sinks: Sink[]) {
-    const transports: any[] = [];
+    const transports: typeof Transport[] = [];
     sinks.forEach((sink) => {
-      if (sink.name === Sinks.CONSOLE) {
-        transports.push(new winstonTransports.Console());
-      } else if (sink.name === Sinks.FILE) {
-        transports.push(new winstonTransports.DailyRotateFile(sink.opts));
-      } else if (sink.name === Sinks.KAFKA) {
-        transports.push(new KafkaTransport(sink.opts));
-      }
+        if (sink.name === Sinks.CONSOLE) {
+            transports.push(new winstonTransports.Console(sink.opts));
+        } else if (sink.name === Sinks.FILE) {
+            transports.push(new winstonTransports.DailyRotateFile(sink.opts));
+        } else if (sink.name === Sinks.HTTP) {
+            transports.push(new winstonTransports.Http(sink.opts));
+        } else if (sink.name === Sinks.STREAM) {
+            transports.push(new winstonTransports.Stream(sink.opts as winstonTransports.StreamTransportOptions));
+        }  else if (sink.name === Sinks.KAFKA) {
+            transports.push(new KafkaTransport(sink.opts));
+        }
     });
 
     if (transports.length > 0) {
-      return createLogger({
-        defaultMeta: { mainLabel: getLabel(config) },
-        level: 'info',
-        format: getFormat(false),
-        transports: transports,
-      });
+        return createLogger({
+            defaultMeta: {mainLabel: getLabel(config)},
+            level: 'info',
+            format: getFormat(false),
+            transports: transports,
+        });
     } else {
-      return getDefaultLogger(config);
+        return getDefaultLogger(config);
     }
 }
 
 export function getChildLogger(logger: winstonLogger, config: LoggerConfig) {
-  return logger.child({ childLabel: getLabel(config) });
+    return logger.child({childLabel: getLabel(config)});
 }

@@ -9,28 +9,23 @@ class ThisClass {
   public readonly module = path.basename(__filename);
   public readonly component = 'ThisClass';
   public readonly serviceID = 'TestID';
-  // private _clsLogger: Logger;
   private _logger: Logger.ILogger;
   private _childClass: ChildClass;
 
   constructor() {
-    // this._clsLogger = new Logger({
-    //   module: this.module,
-    //   component: this.component,
-    //   serviceID: this.serviceID,
-    // });
     this._logger = Logger.getDefaultLogger({
       module: this.module,
       component: this.component,
       serviceID: this.serviceID,
+      level: Logger.Levels.INFO
     });
 
     const childLoggerConf = {
       module: this.module,
       component: 'ChildClass',
       serviceID: this.serviceID,
+      level: Logger.Levels.INFO
     };
-    // const childLogger = this._logger.child({ childLabel: this._clsLogger.getLabel(childLoggerConf) });
     const childLogger = Logger.getChildLogger(this._logger, childLoggerConf)
     this._childClass = new ChildClass(childLogger);
   }

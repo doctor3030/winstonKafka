@@ -1,35 +1,34 @@
-// import { Logger, ConsoleSink, FileSink, KafkaSink } from '../logger';
 import * as Logger from '../logger';
-import { KafkaListener } from './utils/kafka_utils';
-import { v4 as uuid } from 'uuid';
-import { KafkaMessage } from 'kafkajs';
-import { Logger as WinstonLogger } from 'winston';
-import ErrnoException = NodeJS.ErrnoException;
+import {KafkaListener} from './utils/kafka_utils';
+import {v4 as uuid} from 'uuid';
+import {KafkaMessage} from 'kafkajs';
+import {Logger as WinstonLogger} from 'winston';
 import * as chai from 'chai';
 import 'mocha';
+import ErrnoException = NodeJS.ErrnoException;
 
 const path = require('path');
 const fs = require('fs');
 const kafkaClientConfig = {brokers: ['10.0.0.74:9092'], clientId: uuid()};
+// const kafkaClientConfig = {brokers: ['192.168.2.190:9092'], clientId: uuid()};
+
+async function delay(time: number) {
+    return new Promise((resolve) => setTimeout(resolve, time));
+}
 
 class ThisClass {
   public readonly module = path.basename(__filename);
   public readonly component = 'ThisClass';
   public readonly serviceID = 'TestID';
-  // private _clsLogger: Logger;
   private _logger: Logger.ILogger;
   private _childClass: ChildClass;
 
   constructor() {
-    // this._clsLogger = new Logger({
-    //   module: this.module,
-    //   component: this.component,
-    //   serviceID: this.serviceID,
-    // });
     this._logger = Logger.getLogger({
       module: this.module,
       component: this.component,
       serviceID: this.serviceID,
+      level: Logger.Levels.INFO
     },[
       new Logger.ConsoleSink,
       new Logger.FileSink({
@@ -37,10 +36,9 @@ class ThisClass {
         datePattern: 'YYYY-MM-DD-HH',
         zippedArchive: false,
         maxSize: '20m',
-        maxFiles: '14d',
+        frequency: '14d',
       }),
       new Logger.KafkaSink({
-        // client_config: { brokers: ['192.168.2.190:9092'], clientId: uuid() },
         clientConfig: kafkaClientConfig,
         producerConfig: { allowAutoTopicCreation: false },
         sinkTopic: 'test_topic',
@@ -51,8 +49,9 @@ class ThisClass {
       module: this.module,
       component: 'ChildClass',
       serviceID: this.serviceID,
+      level: Logger.Levels.INFO
     };
-    // const childLogger = this._logger.child({ childLabel: this._clsLogger.getLabel(childLoggerConf) });
+
     const childLogger = Logger.getChildLogger(this._logger, childLoggerConf);
     this._childClass = new ChildClass(childLogger);
   }
@@ -133,6 +132,7 @@ describe('Logger tests', () => {
             if (err) {
               console.log(err);
             } else {
+              // console.log(data.toString())
               const json = JSON.parse(data.toString());
               json.push(output);
               fs.writeFile(outputFile, JSON.stringify(json), (err: ErrnoException | null) => {
@@ -176,8 +176,8 @@ describe('Logger tests', () => {
     (async () => {
       await kafkaListener.listen('test_topic', false, onMessage);
       await cls.logSomething();
-      // await delay(5000);
-      // cls.close();
+      // await delay(10000);
+      // await cls.close();
       // await kafkaListener.close();
     })().then((_) => {
       const outputFile = 'test_output_kafka.json';
