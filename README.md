@@ -15,7 +15,7 @@ First, you must supply a basic properties for the logger:
 - **component:** A name of your service component.
 - **level:** A log level.
 
-##getDefaultLogger method
+## getDefaultLogger method
 The quickest way to create logger is to use **getDefaultLogger** method that returns a winston logger with console transport:
 ```typescript
 import * as Logger from "winston-logger-kafka";
@@ -31,7 +31,7 @@ const logger = Logger.getDefaultLogger(config);
 logger.info('Hello!')
 ```
 
-##getLogger method
+## getLogger method
 Use this method to create logger with custom transports:
 
 ```typescript
@@ -65,7 +65,7 @@ logger.info('Hello!')
 ```
 > **_NOTE:_**  Standard sink options are the same as options of corresponding winston transport.
 
-##Use standalone kafka transport
+## Use standalone kafka transport
 You can also use kafka transport with pure winston:
 ```typescript
 import {KafkaTransport, KafkaTransportConfig} from "winston-logger-kafka";
@@ -88,7 +88,7 @@ const logger = winston.createLogger({
 logger.add(new KafkaTransport(options));
 ```
 
-##getChildLogger method
+## getChildLogger method
 Get logger for a child class:
 ```typescript
 
