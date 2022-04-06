@@ -99,3 +99,8 @@ const childLoggerConf = {
 
 const childLogger = Logger.getChildLogger(parentlogger, childLoggerConf);
 ```
+
+## LICENSE
+MIT
+
+##### AUTHOR: [Dmitry Amanov](https://github.com/doctor3030)
