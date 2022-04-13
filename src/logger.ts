@@ -175,7 +175,7 @@ export function getLabel(config: LoggerConfig) {
 export function getDefaultLogger(config: LoggerConfig) {
     return createLogger({
         defaultMeta: {mainLabel: getLabel(config)},
-        level: 'info',
+        level: config.level,
         format: getFormat(true),
         transports: [new winston.transports.Console()],
     });
@@ -200,7 +200,7 @@ export function getLogger(config: LoggerConfig, sinks: Sink[]) {
     if (transports.length > 0) {
         return createLogger({
             defaultMeta: {mainLabel: getLabel(config)},
-            level: 'info',
+            level: config.level,
             format: getFormat(false),
             transports: transports,
         });

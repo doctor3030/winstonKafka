@@ -17,14 +17,14 @@ class ThisClass {
       module: this.module,
       component: this.component,
       serviceID: this.serviceID,
-      level: Logger.Levels.INFO
+      level: Logger.Levels.DEBUG
     });
 
     const childLoggerConf = {
       module: this.module,
       component: 'ChildClass',
       serviceID: this.serviceID,
-      level: Logger.Levels.INFO
+      level: Logger.Levels.DEBUG
     };
     const childLogger = Logger.getChildLogger(this._logger, childLoggerConf)
     this._childClass = new ChildClass(childLogger);
@@ -44,7 +44,7 @@ class ChildClass {
   }
 
   public logSomething() {
-    this._logger.error('HELOOOOO from ChildClass!!!');
+    this._logger.debug('HELOOOOO from ChildClass!!!');
   }
 }
 
@@ -77,7 +77,7 @@ describe('Logger tests', () => {
         module: 'test_default_logger.ts',
         component: 'ChildClass',
         serviceID: 'TestID',
-        level: 'error',
+        level: 'debug',
         message: 'HELOOOOO from ChildClass!!!',
       },
     ];
