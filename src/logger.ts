@@ -19,7 +19,7 @@ export enum Levels {
 export interface LoggerConfig {
     module: string;
     component: string;
-    level: Levels
+    level: string
     serviceID?: string;
 }
 

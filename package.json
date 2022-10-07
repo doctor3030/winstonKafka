@@ -1,6 +1,6 @@
 {
   "name": "winston-logger-kafka",
-  "version": "0.0.12",
+  "version": "0.0.13",
   "description": "Winston based logger with Kafka transport",
   "files": ["/**/*.js", "/**/*.d.ts"],
   "main": "lib/logger.js",
