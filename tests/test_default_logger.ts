@@ -17,10 +17,12 @@ class ThisClass {
             }
         });
 
-        const labelGenerator = () => {
+        // const labelGenerator = () => {
+        //     return `SERVICE NAME: TestService | SERVICE ID: TestID | MODULE: ${path.basename(__filename)} | COMPONENT: ChildClass | PID: ${process.pid}`;
+        // }
+        const childLogger = Logger.getChildLogger(this._logger, () => {
             return `SERVICE NAME: TestService | SERVICE ID: TestID | MODULE: ${path.basename(__filename)} | COMPONENT: ChildClass | PID: ${process.pid}`;
-        }
-        const childLogger = Logger.getChildLogger(this._logger, labelGenerator)
+        })
         this._childClass = new ChildClass(childLogger);
     }
 

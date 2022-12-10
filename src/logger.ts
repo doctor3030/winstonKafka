@@ -3,10 +3,10 @@ import 'winston-daily-rotate-file'
 import winston, {transports as winstonTransports, Logger as winstonLogger} from 'winston';
 import {DailyRotateFileTransportOptions, } from 'winston-daily-rotate-file';
 import * as ITransport from 'winston-transport';
+import {format} from "logform"
 
 const {createLogger} = require('winston');
-const {format} = require('logform');
-const {combine, timestamp, label, printf, colorize} = format;
+const {combine, timestamp, printf, colorize} = format;
 const Transport = require('winston-transport');
 
 export enum Levels {
@@ -17,10 +17,7 @@ export enum Levels {
 }
 
 export interface LoggerConfig {
-    // module: string;
-    // component: string;
     level: string
-    // serviceID?: string;
     labelGenerator?: () => string
 }
 
@@ -29,10 +26,22 @@ export interface Sink {
     opts?: ITransport.TransportStreamOptions;
 }
 
+export interface KafkaTransportProducerConfig extends kafkajs.ProducerConfig {
+    partition?: number;
+    headers?: kafkajs.IHeaders;
+    acks?: number;
+    timeout?: number;
+    messageKey?: string;
+    messageKeyEncoder?: (key: any) => Buffer | string | null;
+    messageValueEncoder?: (val: any) => Buffer | string | null;
+    messageTimestampEncoder?: () => string,
+    producerRecordCompression?: kafkajs.CompressionTypes;
+}
+
 export interface KafkaTransportConfig extends ITransport.TransportStreamOptions {
     clientConfig?: kafkajs.KafkaConfig;
-    producerConfig?: kafkajs.ProducerConfig;
     sinkTopic?: string;
+    producerConfig?: KafkaTransportProducerConfig;
 }
 
 export enum Sinks {
@@ -88,33 +97,58 @@ export class StreamSink implements Sink {
 }
 
 export class KafkaTransport extends Transport {
+    private readonly _config: KafkaTransportConfig;
     private readonly _kafkaProducer: kafkajs.Producer;
     private readonly _sinkTopic: string;
 
-    constructor(kafkaConfig: KafkaTransportConfig | undefined) {
+    constructor(kafkaConfig?: KafkaTransportConfig) {
         super(Transport);
-        if (kafkaConfig && kafkaConfig.clientConfig && kafkaConfig.sinkTopic) {
-            this._kafkaProducer = new kafkajs.Kafka(kafkaConfig.clientConfig).producer(kafkaConfig.producerConfig);
-            this._kafkaProducer.connect().then((_) => {
-                console.log('Logger connected to Kafka.');
-            });
-            this._sinkTopic = kafkaConfig.sinkTopic;
-        } else {
-            this._kafkaProducer = new kafkajs.Kafka({brokers: ['localhost:9092']}).producer();
-            this._kafkaProducer.connect().then((_) => {
-                console.log('Logger connected to Kafka.');
-            });
-            this._sinkTopic = 'test_topic';
-        }
+        
+        if (!kafkaConfig?.clientConfig) {throw new Error(`[winston kafka transport] kafka client config required.`)}
+        if (!kafkaConfig?.sinkTopic) {throw new Error(`[winston kafka transport] sink topic required.`)}
+        
+        // if (kafkaConfig && kafkaConfig.clientConfig && kafkaConfig.sinkTopic) {
+        this._config = kafkaConfig;
+        this._kafkaProducer = new kafkajs.Kafka(kafkaConfig.clientConfig).producer(kafkaConfig.producerConfig);
+        this._kafkaProducer.connect().then((_) => {
+            // console.log('Logger connected to Kafka.');
+        });
+        this._sinkTopic = kafkaConfig.sinkTopic;
+        // }
+        // else {
+        //     this._kafkaProducer = new kafkajs.Kafka({brokers: ['localhost:9092']}).producer();
+        //     this._kafkaProducer.connect().then((_) => {
+        //         console.log('Logger connected to Kafka.');
+        //     });
+        //     this._sinkTopic = 'test_topic';
+        // }
     }
 
     async logToKafka(info: any) {
         // try {
-        await this._kafkaProducer.send({
+        const msgKey = this._config.producerConfig?.messageKey ? this._config.producerConfig.messageKey : null;
+        const msgVal = this._config.producerConfig?.messageValueEncoder ? this._config.producerConfig.messageValueEncoder(info) : JSON.stringify(info);
+        const msg: kafkajs.Message = {
+            key: !msgKey ? null : this._config.producerConfig?.messageKeyEncoder ? this._config.producerConfig.messageKeyEncoder(msgKey) : msgKey,
+            value: msgVal,
+            partition: this._config.producerConfig?.partition ? this._config.producerConfig.partition : undefined,
+            headers: this._config.producerConfig?.headers ? this._config.producerConfig.headers : undefined,
+            timestamp: this._config.producerConfig?.messageTimestampEncoder ? this._config.producerConfig.messageTimestampEncoder() : undefined
+        }
+        const record: kafkajs.ProducerRecord = {
             topic: this._sinkTopic,
-            messages: [{value: JSON.stringify(info)}],
-            compression: kafkajs.CompressionTypes.GZIP,
-        });
+            messages: [msg],
+            acks: this._config.producerConfig?.acks ? this._config.producerConfig.acks : undefined,
+            timeout: this._config.producerConfig?.timeout ? this._config.producerConfig.timeout : undefined,
+            compression: this._config.producerConfig?.producerRecordCompression ? this._config.producerConfig.producerRecordCompression : undefined,
+        }
+        // await this._kafkaProducer.send({
+        //     topic: this._sinkTopic,
+        //     messages: [{value: JSON.stringify(info)}],
+        //     compression: kafkajs.CompressionTypes.GZIP,
+        // });
+
+        await this._kafkaProducer.send(record);
     }
 
     log(info: any, callback: any) {
