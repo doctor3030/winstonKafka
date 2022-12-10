@@ -17,10 +17,11 @@ export enum Levels {
 }
 
 export interface LoggerConfig {
-    module: string;
-    component: string;
+    // module: string;
+    // component: string;
     level: string
-    serviceID?: string;
+    // serviceID?: string;
+    labelGenerator?: () => string
 }
 
 export interface Sink {
@@ -114,9 +115,6 @@ export class KafkaTransport extends Transport {
             messages: [{value: JSON.stringify(info)}],
             compression: kafkajs.CompressionTypes.GZIP,
         });
-        // } catch (e) {
-        //   console.log(e);
-        // }
     }
 
     log(info: any, callback: any) {
@@ -164,17 +162,9 @@ export function getFormat(colors?: boolean) {
     }
 }
 
-export function getLabel(config: LoggerConfig) {
-    if (config.serviceID) {
-        return `MODULE: ${config.module} | COMPONENT: ${config.component} | PID: ${process.pid} | SERVICE_ID: ${config.serviceID}`;
-    } else {
-        return `MODULE: ${config.module} | COMPONENT: ${config.component} | PID: ${process.pid}`;
-    }
-}
-
 export function getDefaultLogger(config: LoggerConfig) {
     return createLogger({
-        defaultMeta: {mainLabel: getLabel(config)},
+        defaultMeta: {mainLabel: config.labelGenerator ? config.labelGenerator() : ''},
         level: config.level,
         format: getFormat(true),
         transports: [new winston.transports.Console()],
@@ -199,7 +189,7 @@ export function getLogger(config: LoggerConfig, sinks: Sink[]) {
 
     if (transports.length > 0) {
         return createLogger({
-            defaultMeta: {mainLabel: getLabel(config)},
+            defaultMeta: {mainLabel: config.labelGenerator ? config.labelGenerator() : ''},
             level: config.level,
             format: getFormat(false),
             transports: transports,
@@ -209,6 +199,6 @@ export function getLogger(config: LoggerConfig, sinks: Sink[]) {
     }
 }
 
-export function getChildLogger(logger: winstonLogger, config: LoggerConfig) {
-    return logger.child({childLabel: getLabel(config)});
+export function getChildLogger(logger: winstonLogger, labelGenerator?: () => string) {
+    return logger.child({childLabel: labelGenerator ? labelGenerator() : undefined});
 }

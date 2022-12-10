@@ -21,8 +21,6 @@ The quickest way to create logger is to use **getDefaultLogger** method that ret
 import * as Logger from "winston-logger-kafka";
 
 const config: Logger.LoggerConfig = {
-    module: 'MyService',
-    component: 'MyComponent',
     level: Logger.Levels.INFO
 };
 
@@ -38,8 +36,6 @@ Use this method to create logger with custom transports:
 import * as Logger from "winston-logger-kafka";
 
 const config: Logger.LoggerConfig = {
-    module: 'MyService',
-    component: 'MyComponent',
     level: Logger.Levels.INFO
 };
 
@@ -92,8 +88,6 @@ Get logger for a child class:
 ```typescript
 
 const childLoggerConf = {
-    module: 'MyService',
-    component: 'ChildClass',
     level: Logger.Levels.INFO
 };
 

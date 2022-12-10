@@ -1,13 +1,13 @@
 {
   "name": "winston-logger-kafka",
-  "version": "0.0.13",
+  "version": "0.1.0",
   "description": "Winston based logger with Kafka transport",
   "files": ["/**/*.js", "/**/*.d.ts"],
   "main": "lib/logger.js",
   "types": "lib/logger.d.ts",
   "scripts": {
     "build": "tsc --declaration",
-    "test": "mocha -r ts-node/register 'src/tests/test_default_logger.ts'",
+    "test": "mocha -r ts-node/register 'tests/test_default_logger.ts'",
     "format": "prettier --write \\\"src/**/*.ts\\\" \\\"src/tests/**/*.ts\\\"",
     "lint": "tslint -p tsconfig.json",
     "prepare" : "npm run build",
